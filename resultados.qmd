@@ -1,0 +1,138 @@
+---
+title: "Resultados"
+---
+
+```{r}
+#| include: false
+library(ggplot2)
+library(dplyr)
+library(emmeans)
+library(multcomp)
+library(car)
+verde <- "#1E4D2B"; cafe <- "#A0522D"
+colores <- c(S1 = "#B9A68C", S2 = "#D9C9A3", S3 = cafe, S4 = verde)
+```
+
+## Lectura de los datos
+
+```{r}
+datos <- read.csv("data/cafe_sustratos.csv") |>
+  mutate(codigo = factor(codigo),
+         sustrato = factor(sustrato, levels = c("Tierra agrícola", "Tierra + arena",
+                                                "Tierra + gallinaza", "Tierra + humus")))
+str(datos)
+```
+
+Cada fila es una unidad experimental. La columna `altura_cm` es el promedio de sus 10 plántulas.
+
+## Estadística descriptiva
+
+```{r}
+datos |>
+  group_by(Código = codigo, Sustrato = sustrato) |>
+  summarise(Repeticiones = n(),
+            `Media (cm)` = mean(altura_cm),
+            `Desv. estándar` = sd(altura_cm),
+            `Error estándar` = sd(altura_cm) / sqrt(n()),
+            .groups = "drop") |>
+  knitr::kable(digits = 2)
+```
+
+```{r}
+#| fig-cap: "Altura de cada unidad experimental (puntos) y media del sustrato (línea horizontal)."
+ggplot(datos, aes(sustrato, altura_cm, color = codigo)) +
+  geom_jitter(width = .12, size = 3, alpha = .8) +
+  stat_summary(fun = mean, geom = "crossbar", width = .45, linewidth = .5, color = "black") +
+  scale_color_manual(values = colores, guide = "none") +
+  labs(x = NULL, y = "Altura de plántula (cm)") +
+  theme_minimal(base_size = 13)
+```
+
+Los dos sustratos con abono orgánico (gallinaza y humus) se separan claramente hacia arriba; el testigo y la mezcla con arena quedan alrededor de 18 cm.
+
+## Análisis de varianza
+
+```{r}
+modelo <- aov(altura_cm ~ codigo, data = datos)
+summary(modelo)
+tab <- summary(modelo)[[1]]
+p_sust <- tab[1, "Pr(>F)"]
+cv <- 100 * sqrt(tab[2, "Mean Sq"]) / mean(datos$altura_cm)
+```
+
+**Coeficiente de variación:** `r round(cv, 1)` %, adecuado para un ensayo en vivero.
+
+### Interpretación del p-valor
+
+El ANOVA compara la variación **entre** sustratos con la variación **dentro** de cada sustrato (el error). El valor F = `r round(tab[1, "F value"], 2)` indica que la variación entre sustratos es unas `r round(tab[1, "F value"])` veces mayor que la del error.
+
+El **p-valor** = `r format(signif(p_sust, 2), scientific = FALSE)` es la probabilidad de observar un F así de grande **si los cuatro sustratos realmente dieran la misma altura**. Como es mucho menor que α = 0.05:
+
+::: {.callout-tip}
+## Decisión
+Se **rechaza H₀**. Existe evidencia estadística de que el tipo de sustrato influye en la altura de las plántulas de café.
+:::
+
+## Verificación de supuestos
+
+```{r}
+sw <- shapiro.test(residuals(modelo))
+lv <- leveneTest(altura_cm ~ codigo, data = datos)
+data.frame(
+  Supuesto = c("Normalidad de los residuos", "Igualdad de varianzas"),
+  Prueba   = c("Shapiro-Wilk", "Levene"),
+  `p-valor` = round(c(sw$p.value, lv[1, "Pr(>F)"]), 3),
+  `¿Se cumple?` = ifelse(c(sw$p.value, lv[1, "Pr(>F)"]) > 0.05, "Sí", "No"),
+  check.names = FALSE
+) |> knitr::kable()
+```
+
+```{r}
+#| fig-cap: "Histograma de residuos: forma aproximadamente simétrica alrededor de cero."
+#| fig-height: 3.5
+ggplot(data.frame(r = residuals(modelo)), aes(r)) +
+  geom_histogram(bins = 7, fill = verde, color = "white") +
+  geom_vline(xintercept = 0, color = cafe, linetype = 2) +
+  labs(x = "Residuo (cm)", y = "Frecuencia") +
+  theme_minimal(base_size = 13)
+```
+
+Ambos p-valores son mayores que 0.05: los residuos son normales y las varianzas homogéneas, por lo que el ANOVA es válido.
+
+## Comparación de medias: Tukey (α = 0.05)
+
+El ANOVA solo indica que hay diferencias; la prueba de Tukey identifica **entre qué sustratos** están.
+
+```{r}
+emm <- emmeans(modelo, ~ codigo)
+as.data.frame(pairs(emm)) |>
+  transmute(Contraste = contrast,
+            `Diferencia (cm)` = round(estimate, 2),
+            `p-valor ajustado` = round(p.value, 4),
+            Conclusión = ifelse(p.value < 0.05, "Difieren", "No difieren")) |>
+  knitr::kable()
+```
+
+```{r}
+grupos <- cld(emm, Letters = letters, reversed = TRUE) |>
+  as.data.frame() |>
+  mutate(letra = trimws(.group),
+         sustrato = levels(datos$sustrato)[as.integer(codigo)])
+
+grupos |>
+  transmute(Sustrato = sustrato, `Media (cm)` = round(emmean, 2), `Grupo Tukey` = letra) |>
+  knitr::kable(row.names = FALSE)
+```
+
+```{r}
+#| fig-cap: "Medias por sustrato con intervalo de confianza al 95 %. Sustratos con distinta letra difieren (Tukey, α = 0.05)."
+ggplot(grupos, aes(reorder(sustrato, emmean), emmean, color = codigo)) +
+  geom_pointrange(aes(ymin = lower.CL, ymax = upper.CL), size = 1, linewidth = 1.2) +
+  geom_text(aes(label = letra, y = upper.CL + 1), color = "black", size = 5, fontface = "bold") +
+  scale_color_manual(values = colores, guide = "none") +
+  coord_flip() +
+  labs(x = NULL, y = "Altura media (cm)") +
+  theme_minimal(base_size = 13)
+```
+
+Se forman **dos grupos**: (a) gallinaza y humus, y (b) testigo y arena. Dentro de cada grupo no hay diferencias significativas.
