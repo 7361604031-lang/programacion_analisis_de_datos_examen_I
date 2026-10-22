@@ -1,0 +1,21 @@
+"unidad","fila","columna","codigo","sustrato","altura_cm"
+1,1,1,"S1","Tierra agrícola",18
+2,1,2,"S1","Tierra agrícola",19.5
+3,1,3,"S2","Tierra + arena",21.6
+4,1,4,"S3","Tierra + gallinaza",25
+5,1,5,"S1","Tierra agrícola",18.5
+6,2,1,"S3","Tierra + gallinaza",22.7
+7,2,2,"S4","Tierra + humus",27.8
+8,2,3,"S4","Tierra + humus",24.1
+9,2,4,"S4","Tierra + humus",25.1
+10,2,5,"S3","Tierra + gallinaza",25.6
+11,3,1,"S2","Tierra + arena",16.4
+12,3,2,"S4","Tierra + humus",26.6
+13,3,3,"S4","Tierra + humus",24
+14,3,4,"S2","Tierra + arena",16.4
+15,3,5,"S3","Tierra + gallinaza",23.8
+16,4,1,"S3","Tierra + gallinaza",27.6
+17,4,2,"S2","Tierra + arena",18.9
+18,4,3,"S1","Tierra agrícola",13.9
+19,4,4,"S2","Tierra + arena",17.9
+20,4,5,"S1","Tierra agrícola",18.7

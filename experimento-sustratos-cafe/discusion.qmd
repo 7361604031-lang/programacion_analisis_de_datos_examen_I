@@ -1,0 +1,47 @@
+---
+title: "Discusión y conclusiones"
+---
+
+```{r}
+#| include: false
+library(dplyr)
+datos <- read.csv("data/cafe_sustratos.csv")
+m <- tapply(datos$altura_cm, datos$codigo, mean)
+modelo <- aov(altura_cm ~ codigo, data = datos)
+p <- summary(modelo)[[1]][1, "Pr(>F)"]
+gan <- round(100 * (m["S4"] / m["S1"] - 1))
+```
+
+## Síntesis
+
+| Etapa | Qué se hizo | Resultado |
+|---|---|---|
+| Diseño | DCA, 4 sustratos × 5 repeticiones | 20 unidades experimentales |
+| Descriptivo | Medias, desviación y error estándar | Alturas de `r round(min(m), 1)` a `r round(max(m), 1)` cm |
+| ANOVA | Prueba F para sustratos | p = `r format(signif(p, 2), scientific = FALSE)` (significativo) |
+| Supuestos | Shapiro-Wilk y Levene | Ambos se cumplen |
+| Comparación de medias | Tukey, α = 0.05 | Gallinaza = humus > testigo = arena |
+
+## Discusión
+
+Los sustratos con materia orgánica superaron al testigo en unos `r round(mean(m[c("S3","S4")]) - mean(m[c("S1","S2")]), 1)` cm. Esto es coherente con lo que se espera de los abonos orgánicos, que aportan nutrientes (sobre todo nitrógeno) y mejoran la retención de humedad del sustrato.
+
+La arena no mejoró el crecimiento. Su función es airear y drenar, no nutrir, y en un vivero con riego controlado esa ventaja no se traduce en mayor altura.
+
+Entre gallinaza y humus no hubo diferencia significativa, así que la elección entre ambos puede basarse en el **costo y la disponibilidad** en la zona y no en el rendimiento.
+
+## Conclusiones
+
+1. El tipo de sustrato **sí influye** en la altura de las plántulas de café a los 90 días.
+2. **Tierra + humus** (`r round(m["S4"], 1)` cm) y **tierra + gallinaza** (`r round(m["S3"], 1)` cm) fueron los mejores sustratos, estadísticamente iguales entre sí.
+3. Con humus, las plántulas crecieron un `r gan` % más que con tierra sola.
+4. Añadir arena a la tierra no aporta beneficio en altura.
+
+## Limitaciones y recomendaciones
+
+::: {.callout-warning}
+## Limitaciones
+- Los datos son **simulados**; las conclusiones sirven para ilustrar el método y deben comprobarse instalando el ensayo.
+- Solo se mide la altura. Un ensayo real debería incluir diámetro del tallo, número de hojas y peso seco de raíz, porque una plántula alta no siempre es una plántula vigorosa.
+- La gallinaza mal descompuesta puede quemar raíces; su grado de compostaje debe controlarse.
+:::
